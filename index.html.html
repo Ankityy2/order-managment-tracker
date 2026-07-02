@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sample Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F5F1; --panel:#FFFFFF; --ink:#1C2128; --ink-soft:#5B6472; --line:#E4E1D8;
+    --teal:#0E5F56; --teal-soft:#E4F0EE;
+    --red:#C0392B; --red-soft:#FBEAE7;
+    --amber:#B7791F; --amber-soft:#FBF1DD;
+    --green:#1E7A46; --green-soft:#E6F3EA;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  #configBanner{background:var(--red-soft);color:var(--red);padding:10px 24px;font-size:13px;font-weight:600;display:none;border-bottom:1px solid var(--red);}
+
+  header{padding:24px 32px 18px;border-bottom:1px solid var(--line);background:var(--panel);display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+  header .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--teal);font-weight:600;}
+  header h1{margin:4px 0 0;font-size:26px;font-weight:700;letter-spacing:-0.01em;}
+  .live-indicator{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  nav{display:flex;gap:4px;padding:0 32px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;}
+  nav button{border:none;background:none;padding:14px 16px;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+  nav button.active{color:var(--teal);border-bottom-color:var(--teal);}
+
+  main{padding:28px 32px 60px;max-width:1240px;margin:0 auto;}
+
+  .summary-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+  .stat .num{font-size:26px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+  .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+  .stat.red .num{color:var(--red);} .stat.amber .num{color:var(--amber);} .stat.green .num{color:var(--green);}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);padding:12px 14px;border-bottom:1px solid var(--line);background:#FAFAF7;}
+  tbody td{padding:12px 14px;font-size:14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFBF9;}
+
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+  .badge.red{background:var(--red-soft);color:var(--red);} .badge.yellow{background:var(--amber-soft);color:var(--amber);} .badge.green{background:var(--green-soft);color:var(--green);}
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  .pill{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;background:var(--teal-soft);color:var(--teal);}
+
+  .bar-track{width:70px;height:6px;background:var(--line);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+  .bar-fill{height:100%;background:var(--teal);}
+
+  form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px;max-width:520px;}
+  form h3{margin-top:0;font-size:17px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em;}
+  .field input, .field select, .field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;background:#fff;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--teal);}
+  button.primary{background:var(--teal);color:#fff;border:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;}
+  button.primary:hover{opacity:.9;} button.primary:disabled{opacity:.5;cursor:not-allowed;}
+  button.small{background:#fff;border:1px solid var(--line);padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);}
+  button.small:hover{border-color:var(--teal);color:var(--teal);}
+
+  .msg{margin-top:12px;font-size:13px;font-weight:600;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+
+  .empty{padding:40px;text-align:center;color:var(--ink-soft);font-size:14px;}
+  .loading{padding:40px;text-align:center;color:var(--ink-soft);font-size:14px;}
+
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .toolbar-left{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px;background:#fff;}
+  .refresh{border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}
+  .refresh:hover{border-color:var(--teal);color:var(--teal);}
+
+  section{display:none;} section.active{display:block;}
+
+  .reason-cell{display:flex;align-items:center;gap:6px;}
+  .reason-tag{font-size:11px;background:var(--amber-soft);color:var(--amber);padding:2px 7px;border-radius:5px;font-weight:600;}
+
+  /* modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(28,33,40,.45);display:none;align-items:center;justify-content:center;z-index:50;}
+  .modal-overlay.active{display:flex;}
+  .modal{background:#fff;border-radius:12px;padding:24px;width:400px;max-width:90vw;}
+  .modal h3{margin-top:0;}
+  .modal-close{float:right;background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-soft);}
+
+  .analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;}
+  .card h3{margin-top:0;font-size:15px;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;}
+  .bar-row .label{width:160px;flex-shrink:0;color:var(--ink-soft);}
+  .bar-row .track{flex:1;height:16px;background:var(--bg);border-radius:4px;overflow:hidden;}
+  .bar-row .fill{height:100%;background:var(--teal);}
+  .bar-row .count{width:28px;text-align:right;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:800px){
+    .summary-row{grid-template-columns:repeat(2,1fr);}
+    .analytics-grid{grid-template-columns:1fr;}
+    table, thead, tbody, th, td, tr{display:block;}
+    thead{display:none;}
+    tbody tr{border-bottom:1px solid var(--line);padding:10px 0;}
+    tbody td{border:none;padding:4px 14px;}
+    tbody td:before{content:attr(data-label);font-weight:600;color:var(--ink-soft);display:inline-block;width:110px;font-size:11px;text-transform:uppercase;}
+  }
+</style>
+</head>
+<body>
+
+<div id="configBanner">⚠ Apps Script URL not set — edit CONFIG.APPS_SCRIPT_URL at the top of the &lt;script&gt; in this file. See SETUP_GUIDE.md.</div>
+
+<header>
+  <div>
+    <div class="eyebrow">Order &amp; Sample Tracker</div>
+    <h1>Dashboard</h1>
+  </div>
+  <div class="live-indicator"><span class="live-dot"></span><span id="liveText">Live — updated just now</span></div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+  <button class="tab-btn" data-tab="analytics">Analytics</button>
+  <button class="tab-btn" data-tab="addOrder">+ New Order</button>
+  <button class="tab-btn" data-tab="logDispatch">+ Log Dispatch</button>
+  <button class="tab-btn" data-tab="companies">Companies</button>
+  <button class="tab-btn" data-tab="employees">Employees</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="active">
+    <div class="summary-row" id="summaryRow"></div>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select id="filterStatus">
+          <option value="all">All statuses</option>
+          <option value="red">🔴 Overdue / Not started</option>
+          <option value="yellow">🟡 Partial / Due soon</option>
+          <option value="green">🟢 Completed</option>
+        </select>
+        <select id="filterEmployee"><option value="all">All employees</option></select>
+      </div>
+      <button class="refresh" id="refreshBtn">↻ Refresh now</button>
+    </div>
+    <div id="tableWrap"><div class="loading">Loading orders…</div></div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="analytics">
+    <div class="analytics-grid">
+      <div class="card">
+        <h3>Why orders are getting missed</h3>
+        <div id="reasonChart"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="card">
+        <h3>Employee performance</h3>
+        <div id="empChart"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADD ORDER -->
+  <section id="addOrder">
+    <form id="orderForm">
+      <h3>New Order / Requirement</h3>
+      <div class="field"><label>Company</label><select name="companyId" id="orderCompanySelect" required></select></div>
+      <div class="field"><label>Product Name</label><input type="text" name="productName" placeholder="e.g. Fabric Sample - Cotton" required></div>
+      <div class="field"><label>Required Quantity</label><input type="number" name="requiredQty" min="1" required></div>
+      <div class="field"><label>Order Date</label><input type="date" name="orderDate" required></div>
+      <div class="field"><label>Due Date</label><input type="date" name="dueDate" required></div>
+      <div class="field"><label>Assigned Salesperson</label><select name="employeeId" id="orderEmployeeSelect" required></select></div>
+      <div class="field"><label>Priority</label>
+        <select name="priority"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select>
+      </div>
+      <button type="submit" class="primary">Create Order</button>
+      <div class="msg" id="orderMsg"></div>
+    </form>
+  </section>
+
+  <!-- LOG DISPATCH -->
+  <section id="logDispatch">
+    <form id="dispatchForm">
+      <h3>Log a Dispatch (Sample Sent)</h3>
+      <div class="field"><label>Order</label><select name="orderId" id="dispatchOrderSelect" required></select></div>
+      <div class="field"><label>Quantity Sent (this batch)</label><input type="number" name="qtySent" min="1" required></div>
+      <div class="field"><label>Date Sent</label><input type="date" name="dateSent" required></div>
+      <div class="field"><label>Sent By</label><select name="sentByEmployeeId" id="dispatchEmployeeSelect" required></select></div>
+      <div class="field"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
+      <button type="submit" class="primary">Log Dispatch</button>
+      <div class="msg" id="dispatchMsg"></div>
+    </form>
+  </section>
+
+  <!-- COMPANIES -->
+  <section id="companies">
+    <div class="toolbar"><div></div><button class="refresh" id="companiesRefreshBtn">↻ Refresh</button></div>
+    <div id="companiesTableWrap"><div class="loading">Loading companies…</div></div>
+    <div style="height:20px;"></div>
+    <form id="companyForm">
+      <h3>Add New Company</h3>
+      <div class="field"><label>Company Name</label><input type="text" name="companyName" required></div>
+      <div class="field"><label>Contact Person</label><input type="text" name="contactPerson"></div>
+      <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+      <div class="field"><label>Email</label><input type="email" name="email"></div>
+      <div class="field"><label>Default Salesperson</label><select name="defaultEmployeeId" id="companyEmployeeSelect"></select></div>
+      <button type="submit" class="primary">Add Company</button>
+      <div class="msg" id="companyMsg"></div>
+    </form>
+  </section>
+
+  <!-- EMPLOYEES -->
+  <section id="employees">
+    <div class="toolbar"><div></div><button class="refresh" id="employeesRefreshBtn">↻ Refresh</button></div>
+    <div id="employeesTableWrap"><div class="loading">Loading employees…</div></div>
+    <div style="height:20px;"></div>
+    <form id="employeeForm">
+      <h3>Add New Salesperson</h3>
+      <div class="field"><label>Name</label><input type="text" name="name" required></div>
+      <div class="field"><label>Email (notifications go here)</label><input type="email" name="email" required></div>
+      <div class="field"><label>Phone</label><input type="text" name="phone"></div>
+      <button type="submit" class="primary">Add Salesperson</button>
+      <div class="msg" id="employeeMsg"></div>
+    </form>
+  </section>
+
+</main>
+
+<!-- Delay Reason Modal -->
+<div class="modal-overlay" id="reasonModal">
+  <div class="modal">
+    <button class="modal-close" id="reasonModalClose">✕</button>
+    <h3>Why is this order delayed?</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-top:-8px;" id="reasonOrderLabel"></p>
+    <div class="field">
+      <label>Reason</label>
+      <select id="reasonSelect"></select>
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="reasonNotes" rows="2" placeholder="Any extra context…"></textarea>
+    </div>
+    <button class="primary" id="reasonSaveBtn">Save Reason</button>
+    <div class="msg" id="reasonMsg"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — paste your deployed Apps Script Web App URL here
+// ============================================================
+const CONFIG = {
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbz1wcPVi7li_5LDNdicIlMO_SJi6w41aj62wHn0iJt85Q95UDrokoSp5uVrOYja4S7R7g/exec",
+  POLL_INTERVAL_MS: 20000 // auto-refresh every 20 seconds — "near real time"
+};
+
+const isConfigured = CONFIG.APPS_SCRIPT_URL && CONFIG.APPS_SCRIPT_URL.indexOf("https://") === 0;
+if (!isConfigured) document.getElementById('configBanner').style.display = 'block';
+
+let dashboardData = null;
+let currentStatusFilter = 'all';
+let currentEmployeeFilter = 'all';
+let pollTimer = null;
+let currentReasonOrderId = null;
+
+// ---------- Tab switching ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'addOrder') { loadCompaniesIntoSelect(); loadEmployeesIntoSelect('orderEmployeeSelect'); }
+    if (btn.dataset.tab === 'logDispatch') { loadOrdersIntoSelect(); loadEmployeesIntoSelect('dispatchEmployeeSelect'); }
+    if (btn.dataset.tab === 'companies') { loadCompaniesTable(); loadEmployeesIntoSelect('companyEmployeeSelect'); }
+    if (btn.dataset.tab === 'employees') loadEmployeesTable();
+    if (btn.dataset.tab === 'analytics') loadAnalytics();
+  });
+});
+
+// ---------- API helpers ----------
+async function apiGet(action) {
+  const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=${action}`);
+  return res.json();
+}
+async function apiPost(action, data) {
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action, data }) });
+  return res.json();
+}
+
+// ---------- Dashboard ----------
+async function loadDashboard(silent) {
+  if (!silent) document.getElementById('tableWrap').innerHTML = '<div class="loading">Loading orders…</div>';
+  try {
+    const data = await apiGet('dashboard');
+    if (data.error) throw new Error(data.error);
+    dashboardData = data;
+    renderSummary(data.summary);
+    populateEmployeeFilter(data.employees);
+    renderTable();
+    document.getElementById('liveText').textContent = 'Live — updated just now';
+  } catch (err) {
+    document.getElementById('tableWrap').innerHTML = `<div class="empty">Could not load data. ${err.message}</div>`;
+  }
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => loadDashboard(true), CONFIG.POLL_INTERVAL_MS);
+}
+
+function populateEmployeeFilter(employees) {
+  const sel = document.getElementById('filterEmployee');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="all">All employees</option>' +
+    employees.map(e => `<option value="${e.EmployeeID}">${escapeHtml(e.Name)}</option>`).join('');
+  sel.value = currentVal || 'all';
+}
+
+function renderSummary(s) {
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="stat"><div class="num">${s.total}</div><div class="lbl">Total Orders</div></div>
+    <div class="stat red"><div class="num">${s.overdue}</div><div class="lbl">Overdue</div></div>
+    <div class="stat amber"><div class="num">${s.dueSoon}</div><div class="lbl">Due Soon</div></div>
+    <div class="stat green"><div class="num">${s.completed}</div><div class="lbl">Completed</div></div>
+    <div class="stat"><div class="num">${s.pending}</div><div class="lbl">Still Pending</div></div>
+  `;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderTable() {
+  if (!dashboardData) return;
+  let rows = dashboardData.rows;
+  if (currentStatusFilter !== 'all') rows = rows.filter(r => r.statusColor === currentStatusFilter);
+  if (currentEmployeeFilter !== 'all') rows = rows.filter(r => r.employeeId === currentEmployeeFilter);
+
+  if (rows.length === 0) {
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">No orders match this filter.</div>';
+    return;
+  }
+
+  const html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th><th>Product</th><th>Required</th><th>Sent</th><th>Pending</th>
+          <th>Due Date</th><th>Owner</th><th>Status</th><th>Delay Reason</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => {
+          const pct = r.requiredQty > 0 ? Math.min(100, Math.round((r.sentQty / r.requiredQty) * 100)) : 0;
+          const needsReason = r.statusColor !== 'green';
+          return `
+          <tr>
+            <td data-label="Company"><strong>${escapeHtml(r.companyName)}</strong></td>
+            <td data-label="Product">${escapeHtml(r.productName)}</td>
+            <td data-label="Required" class="mono">${r.requiredQty}</td>
+            <td data-label="Sent"><span class="bar-track"><span class="bar-fill" style="width:${pct}%"></span></span><span class="mono">${r.sentQty}</span></td>
+            <td data-label="Pending" class="mono">${r.pendingQty}</td>
+            <td data-label="Due Date">${fmtDate(r.dueDate)}</td>
+            <td data-label="Owner"><span class="pill">${escapeHtml(r.employeeName)}</span></td>
+            <td data-label="Status"><span class="badge ${r.statusColor}"><span class="dot"></span>${r.status}</span></td>
+            <td data-label="Delay Reason">${r.delayReason ? `<span class="reason-tag">${escapeHtml(r.delayReason)}</span>` : '<span style="color:var(--ink-soft);font-size:12px;">—</span>'}</td>
+            <td data-label="">${needsReason ? `<button class="small" onclick="openReasonModal('${r.orderId}','${escapeHtml(r.companyName)} — ${escapeHtml(r.productName)}')">Why delayed?</button>` : ''}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('tableWrap').innerHTML = html;
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+document.getElementById('filterStatus').addEventListener('change', e => { currentStatusFilter = e.target.value; renderTable(); });
+document.getElementById('filterEmployee').addEventListener('change', e => { currentEmployeeFilter = e.target.value; renderTable(); });
+document.getElementById('refreshBtn').addEventListener('click', () => loadDashboard(false));
+
+// ---------- Delay reason modal ----------
+const REASONS = [
+  'Forgot / Missed follow-up','Stock not available','Waiting for customer confirmation',
+  'Courier / logistics delay','Internal approval pending','Customer changed requirement','Other'
+];
+function openReasonModal(orderId, label) {
+  currentReasonOrderId = orderId;
+  document.getElementById('reasonOrderLabel').textContent = label;
+  document.getElementById('reasonSelect').innerHTML = REASONS.map(r => `<option value="${r}">${r}</option>`).join('');
+  document.getElementById('reasonNotes').value = '';
+  document.getElementById('reasonMsg').textContent = '';
+  document.getElementById('reasonModal').classList.add('active');
+}
+document.getElementById('reasonModalClose').addEventListener('click', () => document.getElementById('reasonModal').classList.remove('active'));
+document.getElementById('reasonModal').addEventListener('click', e => { if (e.target.id === 'reasonModal') e.target.classList.remove('active'); });
+document.getElementById('reasonSaveBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('reasonMsg');
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  try {
+    const res = await apiPost('setDelayReason', {
+      orderId: currentReasonOrderId,
+      reason: document.getElementById('reasonSelect').value,
+      notes: document.getElementById('reasonNotes').value
+    });
+    if (res.error) throw new Error(res.error);
+    msg.textContent = 'Saved.'; msg.className = 'msg ok';
+    setTimeout(() => { document.getElementById('reasonModal').classList.remove('active'); loadDashboard(true); }, 600);
+  } catch (err) {
+    msg.textContent = 'Error: ' + err.message; msg.className = 'msg err';
+  }
+});
+
+// ---------- Analytics ----------
+async function loadAnalytics() {
+  document.getElementById('reasonChart').innerHTML = '<div class="loading">Loading…</div>';
+  document.getElementById('empChart').innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const data = await apiGet('analytics');
+    if (data.error) throw new Error(data.error);
+
+    const maxReason = Math.max(1, ...data.reasonBreakdown.map(r => r.count));
+    document.getElementById('reasonChart').innerHTML = data.reasonBreakdown.length
+      ? data.reasonBreakdown.map(r => `
+          <div class="bar-row">
+            <div class="label">${escapeHtml(r.reason)}</div>
+            <div class="track"><div class="fill" style="width:${(r.count / maxReason) * 100}%"></div></div>
+            <div class="count">${r.count}</div>
+          </div>`).join('')
+      : '<div class="empty">No delay reasons logged yet.</div>';
+
+    const maxOverdue = Math.max(1, ...data.employeeStats.map(e => e.total));
+    document.getElementById('empChart').innerHTML = data.employeeStats.length
+      ? `<table><thead><tr><th>Salesperson</th><th>Total</th><th>Overdue</th><th>Due Soon</th><th>Completed</th><th>Completion %</th></tr></thead><tbody>` +
+        data.employeeStats.map(e => `
+          <tr>
+            <td data-label="Salesperson"><strong>${escapeHtml(e.name)}</strong></td>
+            <td data-label="Total" class="mono">${e.total}</td>
+            <td data-label="Overdue"><span class="badge red"><span class="dot"></span>${e.overdue}</span></td>
+            <td data-label="Due Soon"><span class="badge yellow"><span class="dot"></span>${e.dueSoon}</span></td>
+            <td data-label="Completed"><span class="badge green"><span class="dot"></span>${e.completed}</span></td>
+            <td data-label="Completion %" class="mono">${e.completionRate}%</td>
+          </tr>`).join('') + `</tbody></table>`
+      : '<div class="empty">No data yet.</div>';
+  } catch (err) {
+    document.getElementById('reasonChart').innerHTML = `<div class="empty">Could not load. ${err.message}</div>`;
+  }
+}
+
+// ---------- Add Order form ----------
+async function loadCompaniesIntoSelect() {
+  const sel = document.getElementById('orderCompanySelect');
+  sel.innerHTML = '<option>Loading…</option>';
+  try {
+    const companies = await apiGet('companies');
+    sel.innerHTML = companies.map(c => `<option value="${c.CompanyID}">${escapeHtml(c.CompanyName)}</option>`).join('');
+  } catch (err) { sel.innerHTML = '<option>Could not load companies</option>'; }
+}
+async function loadEmployeesIntoSelect(selectId) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option>Loading…</option>';
+  try {
+    const employees = await apiGet('employees');
+    sel.innerHTML = (selectId === 'companyEmployeeSelect' ? '<option value="">— none —</option>' : '') +
+      employees.map(e => `<option value="${e.EmployeeID}">${escapeHtml(e.Name)}</option>`).join('');
+  } catch (err) { sel.innerHTML = '<option>Could not load employees</option>'; }
+}
+
+document.getElementById('orderForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('orderMsg');
+  const btn = e.target.querySelector('button'); btn.disabled = true; msg.textContent = '';
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const res = await apiPost('addOrder', payload);
+    if (res.error) throw new Error(res.error);
+    msg.textContent = `Order ${res.id} created.`; msg.className = 'msg ok';
+    e.target.reset();
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.className = 'msg err'; }
+  finally { btn.disabled = false; }
+});
+
+// ---------- Log Dispatch form ----------
+async function loadOrdersIntoSelect() {
+  const sel = document.getElementById('dispatchOrderSelect');
+  sel.innerHTML = '<option>Loading…</option>';
+  try {
+    const data = await apiGet('dashboard');
+    const openOrders = data.rows.filter(r => r.status !== 'Completed');
+    sel.innerHTML = openOrders.map(r =>
+      `<option value="${r.orderId}">${r.orderId} — ${escapeHtml(r.companyName)} — ${escapeHtml(r.productName)} (Pending: ${r.pendingQty})</option>`
+    ).join('') || '<option>No open orders</option>';
+  } catch (err) { sel.innerHTML = '<option>Could not load orders</option>'; }
+}
+
+document.getElementById('dispatchForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('dispatchMsg');
+  const btn = e.target.querySelector('button'); btn.disabled = true; msg.textContent = '';
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const res = await apiPost('addDispatch', payload);
+    if (res.error) throw new Error(res.error);
+    msg.textContent = `Dispatch ${res.id} logged.`; msg.className = 'msg ok';
+    e.target.reset();
+    loadOrdersIntoSelect();
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.className = 'msg err'; }
+  finally { btn.disabled = false; }
+});
+
+// ---------- Companies tab ----------
+async function loadCompaniesTable() {
+  const wrap = document.getElementById('companiesTableWrap');
+  wrap.innerHTML = '<div class="loading">Loading companies…</div>';
+  try {
+    const companies = await apiGet('companies');
+    if (companies.length === 0) { wrap.innerHTML = '<div class="empty">No companies yet. Add one below.</div>'; return; }
+    wrap.innerHTML = `<table><thead><tr><th>ID</th><th>Company</th><th>Contact</th><th>Phone</th><th>Email</th></tr></thead><tbody>` +
+      companies.map(c => `
+        <tr>
+          <td data-label="ID" class="mono">${escapeHtml(c.CompanyID)}</td>
+          <td data-label="Company"><strong>${escapeHtml(c.CompanyName)}</strong></td>
+          <td data-label="Contact">${escapeHtml(c.ContactPerson)}</td>
+          <td data-label="Phone">${escapeHtml(c.Phone)}</td>
+          <td data-label="Email">${escapeHtml(c.Email)}</td>
+        </tr>`).join('') + `</tbody></table>`;
+  } catch (err) { wrap.innerHTML = `<div class="empty">Could not load companies. ${err.message}</div>`; }
+}
+document.getElementById('companiesRefreshBtn').addEventListener('click', loadCompaniesTable);
+
+document.getElementById('companyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('companyMsg');
+  const btn = e.target.querySelector('button'); btn.disabled = true; msg.textContent = '';
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const res = await apiPost('addCompany', payload);
+    if (res.error) throw new Error(res.error);
+    msg.textContent = `Company ${res.id} added.`; msg.className = 'msg ok';
+    e.target.reset();
+    loadCompaniesTable();
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.className = 'msg err'; }
+  finally { btn.disabled = false; }
+});
+
+// ---------- Employees tab ----------
+async function loadEmployeesTable() {
+  const wrap = document.getElementById('employeesTableWrap');
+  wrap.innerHTML = '<div class="loading">Loading employees…</div>';
+  try {
+    const employees = await apiGet('employees');
+    if (employees.length === 0) { wrap.innerHTML = '<div class="empty">No salespeople yet. Add one below.</div>'; return; }
+    wrap.innerHTML = `<table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th></tr></thead><tbody>` +
+      employees.map(e => `
+        <tr>
+          <td data-label="ID" class="mono">${escapeHtml(e.EmployeeID)}</td>
+          <td data-label="Name"><strong>${escapeHtml(e.Name)}</strong></td>
+          <td data-label="Email">${escapeHtml(e.Email)}</td>
+          <td data-label="Phone">${escapeHtml(e.Phone)}</td>
+        </tr>`).join('') + `</tbody></table>`;
+  } catch (err) { wrap.innerHTML = `<div class="empty">Could not load employees. ${err.message}</div>`; }
+}
+document.getElementById('employeesRefreshBtn').addEventListener('click', loadEmployeesTable);
+
+document.getElementById('employeeForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('employeeMsg');
+  const btn = e.target.querySelector('button'); btn.disabled = true; msg.textContent = '';
+  const payload = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const res = await apiPost('addEmployee', payload);
+    if (res.error) throw new Error(res.error);
+    msg.textContent = `Salesperson ${res.id} added.`; msg.className = 'msg ok';
+    e.target.reset();
+    loadEmployeesTable();
+  } catch (err) { msg.textContent = 'Error: ' + err.message; msg.className = 'msg err'; }
+  finally { btn.disabled = false; }
+});
+
+// ---------- Init ----------
+if (isConfigured) { loadDashboard(false); startPolling(); }
+else document.getElementById('tableWrap').innerHTML = '<div class="empty">Set your Apps Script URL first (see banner above / SETUP_GUIDE.md).</div>';
+</script>
+
+</body>
+</html>
